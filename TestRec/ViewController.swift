@@ -24,7 +24,15 @@ class ViewController: UIViewController,AVAudioRecorderDelegate{
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         let filename = "temp.wav"
-        let filepath =  NSHomeDirectory() + "/record/" + filename
+        let fileDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).map(\.path)[0] + "/temp"
+        let fileMgr = FileManager.default
+        
+        do {
+            try fileMgr.createDirectory(at: URL(fileURLWithPath: fileDir), withIntermediateDirectories: true, attributes: nil)
+        } catch  {
+            print(error.localizedDescription)
+        }
+        let filepath =  fileDir + filename
         let fileUrl = URL(fileURLWithPath: filepath)
         let recordSettings:[String:Any] = [
             AVEncoderAudioQualityKey:AVAudioQuality.min.rawValue,
@@ -36,7 +44,6 @@ class ViewController: UIViewController,AVAudioRecorderDelegate{
             audioRecorder = try AVAudioRecorder.init(url: fileUrl, settings: recordSettings)
             audioRecorder.delegate = self
         } catch  {
-            audioRecorder = AVAudioRecorder.init()
             print(error.localizedDescription)
         }
         
@@ -45,13 +52,16 @@ class ViewController: UIViewController,AVAudioRecorderDelegate{
     
     func setttingAudioSession(mode:AutioSessionMode) {
         let session = AVAudioSession.sharedInstance()
+        session.requestRecordPermission { (answer) in
+            print(answer)
+        }
         do {
             switch mode {
-            case .play:
-                try session.setCategory(AVAudioSession.Category.playAndRecord)
             case .record:
+                try session.setCategory(AVAudioSession.Category.playAndRecord)
+            case .play:
                 try session.setCategory(AVAudioSession.Category.playback)
-                try session.setActive(true)
+                try session.setActive(false)
             }
         } catch  {
             print(error.localizedDescription)
@@ -62,17 +72,20 @@ class ViewController: UIViewController,AVAudioRecorderDelegate{
     //MARK:AudioRecord Delegate
     func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         if flag == true{
-            recorder.url
+            print("錄成功")
             do {
                 audioPlayer = try AVAudioPlayer(contentsOf: recorder.url)
             } catch  {
                 print(error.localizedDescription)
             }
+        }else{
+            print("錄失敗")
         }
     }
     
 
     @IBAction func record(_ sender: UIButton) {
+        print("開始錄")
         setttingAudioSession(mode: .record)
         audioRecorder.prepareToRecord()
         audioRecorder.record()
@@ -80,12 +93,15 @@ class ViewController: UIViewController,AVAudioRecorderDelegate{
     }
 
     @IBAction func stopRec(_ sender: UIButton) {
+        print("結束錄")
         isRecording = false
         audioRecorder.stop()
+        self.setttingAudioSession(mode: .play)
     }
     
     
     @IBAction func play(_ sender: UIButton) {
+        print("play")
         if isRecording == false{
             audioPlayer?.stop()
             audioPlayer?.currentTime = 0.0
@@ -94,6 +110,10 @@ class ViewController: UIViewController,AVAudioRecorderDelegate{
     }
     
     @IBAction func stopPlay(_ sender: Any) {
+        if isRecording == false{
+            audioPlayer?.stop()
+            audioPlayer?.currentTime = 0.0
+        }
     }
     
     
